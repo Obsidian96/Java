@@ -1,1 +1,552 @@
-!
+//Using google API
+if (mGoogleApiClient == null) {
+    mGoogleApiClient = new GoogleApiClient.Builder(this)
+    .addConnectionCallbacks(this)
+    .addOnConnectionFailedListener(this)
+    .addApi(LocationServices.API)
+    .build();
+}
+
+
+//Simple volley request
+Request = new StringRequest(Request.Method.GET, "Server" + ID, new Response.Listener<String>() {
+    @Override
+    public void onResponse(String res) {
+        storeJSON(res);
+    }
+
+}, new Response.ErrorListener() {
+
+    @Override
+    public void onErrorResponse(VolleyError err) {
+        tv.setText(err.getMessage());
+    }
+});
+request.add(orderRequest);
+
+
+//Swipe left and right
+public class OnSwipeTouchListener implements OnTouchListener {
+
+    private final GestureDetector gestureDetector;
+
+    public OnSwipeTouchListener(Context context) {
+        gestureDetector = new GestureDetector(context, new GestureListener());
+    }
+
+    public void onSwipeLeft() {
+    }
+
+    public void onSwipeRight() {
+    }
+
+    public boolean onTouch(View v, MotionEvent event) {
+        return gestureDetector.onTouchEvent(event);
+    }
+
+    private final class GestureListener extends SimpleOnGestureListener {
+
+        private static final int SWIPE_DISTANCE_THRESHOLD = 100;
+        private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+
+        @Override
+        public boolean onDown(MotionEvent e) {
+            return true;
+        }
+
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            float distanceX = e2.getX() - e1.getX();
+            float distanceY = e2.getY() - e1.getY();
+            if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > SWIPE_DISTANCE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                if (distanceX > 0)
+                    onSwipeRight();
+                else
+                    onSwipeLeft();
+                return true;
+            }
+            return false;
+        }
+    }
+}
+
+//Start activity using item id
+public void onItemClick(AdapterView<?> l, View v, int position, long id) {
+    Intent i = new Intent(this, Display_food.class);
+    i.putExtra("id", listids.get(position));
+    startActivity(i);
+}
+
+//Show a json from local file into  adapter string
+private void showJSON(String filename) {
+    listids = new ArrayList<String>();
+    Resources res = getResources();
+    try {
+        adapter.clear();
+        int n = 0;
+        FileInputStream fis = openFileInput(filename);
+        StringBuilder fileContent = new StringBuilder("");
+        byte[] buffer = new byte[1024];
+        while ((n = fis.read(buffer)) != -1) {
+            fileContent.append(new String(buffer, 0, n));
+        }
+
+        String[] rows = fileContent.toString().split("\n");
+        String[][] matrix = new String[rows.length][];
+        int r = 0;
+        for (String row : rows) {
+            matrix[r++] = row.split("\\|");
+        }
+        String adapterString;
+        for (int i = 0; i < matrix.length; ++i)
+            adapterString = res.getString(R.string.order_string, matrix[i][1], matrix[i][2], matrix[i][6], matrix[i][7], matrix[i][3], matrix[i][4], matrix[i][5]);
+        adapter.add(adapterString);
+        listids.add(matrix[i][0]);
+    }
+} catch (Exception e) {
+    e.printStackTrace();
+}
+}
+
+//Store a json in a local file
+private void storeJSON(String json) {
+    try {
+        FileOutputStream fos = openFileOutput("Cache", Context.MODE_PRIVATE);
+        fos.write("".getBytes());
+        fos.close();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    try {
+        JSONArray jsonArray = new JSONArray(json);
+        for (int i = 0; i < jsonArray.length(); i++) {
+            String LeftViewString = jsonArray.getJSONObject(i).getString("ID");
+            try {
+                FileOutputStream fos = openFileOutput("Cache", Context.MODE_APPEND);
+                fos.write(LeftViewString.getBytes());
+                fos.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    } catch (JSONException e) {
+        e.printStackTrace();
+    }
+}
+
+//Menu
+@Override
+public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+    getMenuInflater().inflate(R.menu.menu_main, menu);
+    return true;
+}
+
+@Override
+public boolean onOptionsItemSelected(MenuItem item) {
+    int id = item.getItemId();
+
+    if (id == R.id.action_about) {
+        AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
+        alertDialog.setTitle(this.getString(R.string.action_message_title));
+        alertDialog.setMessage(this.getString(R.string.action_message_message));
+        alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "Oki doki",
+            new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+        alertDialog.show();
+    }
+    if (id == R.id.action_settings) {
+        Intent i = new Intent(this, Display_settings.class);
+        startActivity(i);
+    }
+    if (id == R.id.action_support) {
+        Intent i = new Intent(this, Support_activity.class);
+        startActivity(i);
+    }
+    if (id == R.id.action_account) {
+        Intent i = new Intent(this, Display_account.class);
+        startActivity(i);
+    }
+    if (id == R.id.action_sales) {
+        Intent i = new Intent(this, Display_sales.class);
+        startActivity(i);
+    }
+    if (id == R.id.action_quit)
+        finish();
+
+    return super.onOptionsItemSelected(item);
+}
+
+@Override
+public void onBackPressed() {
+}
+
+//Location
+protected void onStart() {
+    mGoogleApiClient.connect();
+    super.onStart();
+}
+
+protected void onStop() {
+    mGoogleApiClient.disconnect();
+    super.onStop();
+}
+
+@Override
+public void onConnected(Bundle connectionHint) {
+    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        aroundRequest = new StringRequest(Request.Method.GET, "server" + 49 + "&" + 2, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String res) {
+                storeMiddleJSON(res);
+            }
+        }, new Response.ErrorListener() {
+
+            @Override
+            public void onErrorResponse(VolleyError err) {
+                tv.setText(err.getMessage());
+            }
+        });
+        requestQueue.add(aroundRequest);
+    }
+    else {
+        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+            mGoogleApiClient);
+        if (mLastLocation != null) {
+            double[]  loc = {mLastLocation.getLatitude(), mLastLocation.getLongitude()};
+            aroundRequest = new StringRequest(Request.Method.GET, "server" + loc[0] + "&" + loc[1], new Response.Listener<String>() {
+                @Override
+                public void onResponse(String res) {
+                    storeMiddleJSON(res);
+                }
+            }, new Response.ErrorListener() {
+
+                @Override
+                public void onErrorResponse(VolleyError err) {
+                    tv.setText(err.getMessage());
+                }
+            });
+            requestQueue.add(aroundRequest);
+        }
+    }
+}
+
+@Override
+public void onConnectionSuspended(int cause) {
+       //ERROR CHECK
+}
+
+@Override
+public void onConnectionFailed(ConnectionResult result) {
+        //ERROR CHECK
+}
+
+//Check Network
+private boolean isNetworkAvailable() {
+    ConnectivityManager connectivityManager
+    = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+    NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+    return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+}
+
+private void nonetalert() {
+    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    builder.setMessage(R.string.main_dialog_m)
+    .setTitle(R.string.main_dialog_t);
+
+    builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface dialog, int id) {
+            WifiManager wifiManager = (WifiManager)MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+            wifiManager.setWifiEnabled(true);
+        }
+    });
+    builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface dialog, int id) {
+                // User cancelled the dialog
+        }
+    });
+
+    AlertDialog dialog = builder.create();
+    dialog.show();
+}
+}
+
+
+
+//Using Braintree
+private void getBraintreeToken(){
+    RequestQueue queue = Volley.newRequestQueue(Display_food.this);
+    StringRequest sr = new StringRequest(Request.Method.POST, "SERVER", new Response.Listener<String>() {
+        @Override
+        public void onResponse(String response) {
+            PaymentRequest paymentRequest = new PaymentRequest()
+            .clientToken(response);
+            startActivityForResult(paymentRequest.getIntent(Display_food.this), 0);
+        }
+    }, new Response.ErrorListener() {
+        @Override
+        public void onErrorResponse(VolleyError error) {
+            TextView tv = (TextView) findViewById(R.id.resultView);
+            tv.setText(error.getMessage());
+        }
+    });
+    queue.add(sr);
+}
+@Override
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    if (requestCode == 0) {
+        if (resultCode == Activity.RESULT_OK) {
+            PaymentMethodNonce paymentMethodNonce = data.getParcelableExtra(
+                BraintreePaymentActivity.EXTRA_PAYMENT_METHOD_NONCE
+                );
+            String nonce = paymentMethodNonce.getNonce();
+                // Send the nonce to your server.
+            paymentrequest(nonce);
+        }
+    }
+}
+
+//POST Request
+StringRequest sr = new StringRequest(Request.Method.POST,"SERVER", new Response.Listener<String>() {
+    @Override
+    public void onResponse(String response) {
+        if (response.equals("0")) {
+            Intent i = new Intent(Display_food.this, MainActivity.class);
+            startActivity(i);
+        }
+    }
+}, new Response.ErrorListener() {
+    @Override
+    public void onErrorResponse(VolleyError error) {
+        TextView tv = (TextView)findViewById(R.id.resultview);
+        tv.setText(error.getMessage());
+    }
+}){
+    @Override
+    protected Map<String,String> getParams(){
+        Map<String,String> params = new HashMap<String, String>();
+        params.put("payment_method_nonce", nonce);
+        return params;
+    }
+    @Override
+    public Map<String, String> getHeaders() throws AuthFailureError {
+        Map<String,String> params = new HashMap<String, String>();
+        params.put("Content-Type","application/x-www-form-urlencoded");
+        return params;
+    }
+};
+queue.add(sr);
+
+
+//List of category
+public class Category extends AppCompatActivity
+implements NavigationView.OnNavigationItemSelectedListener {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_category);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        Intent categ = getIntent();
+
+        final GridView gridView = (GridView) findViewById(R.id.gridView2);
+        final String url = categ.getStringExtra("url");
+        RequestQueue queue = Volley.newRequestQueue(this);
+        JsonArrayRequest postRequest = new JsonArrayRequest(Request.Method.POST, url,
+            new Response.Listener<JSONArray>() {
+                @Override public void onResponse(JSONArray response) {
+                    Log.e("Response", response.toString());
+                    final JSONArray JSONRes;
+                    JSONRes = response;
+                    gridView.setAdapter(new CardAdapter(getApplicationContext(), JSONRes));
+
+                    gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                        public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
+                            try {
+                                Intent WVContainer = new Intent(Category.this, WV.class);
+                                WVContainer.putExtra("url", JSONRes.getJSONObject(position).getString("link"));
+                                startActivity(WVContainer);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                            Toast.makeText(getApplicationContext(),
+                                ((TextView) v.findViewById(R.id.grid_item_label)).getText(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            },
+            new Response.ErrorListener() {
+                @Override public void onErrorResponse(VolleyError error) {Log.e("Error.Response", error.toString());}
+            }
+            );
+        queue.add(postRequest);
+
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+            this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.setDrawerListener(toggle);
+        toggle.syncState();
+
+        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+        navigationView.setItemIconTintList(null);
+    }
+
+    @Override
+    public void onBackPressed() {
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_settings) {
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        // Handle navigation view item clicks here.
+        int id = item.getItemId();
+        Intent categ;
+        categ = new Intent(Category.this, Category.class);
+        if (id == R.id.nav_html_css)
+            categ.putExtra("url", "server/html-css/1");
+        else if (id == R.id.nav_javascript)
+            categ.putExtra("url", "server/javascript/1");
+
+        startActivity(categ);
+
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+//card adapter
+public class CardAdapter extends BaseAdapter {
+    private Context context;
+    private final JSONArray cardValues;
+
+    public CardAdapter(Context context, JSONArray cardValues) {
+        this.context = context;
+        this.cardValues = cardValues;
+    }
+
+    public View getView(int position, View convertView, ViewGroup parent) {
+
+        LayoutInflater inflater = (LayoutInflater) context
+                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+        View gridView;
+
+        if (convertView == null) {
+            gridView = new View(context);
+            try {
+                // get layout from mobile.xml
+                gridView = inflater.inflate(R.layout.card, null);
+
+                // set value into textview
+                TextView textView = (TextView) gridView
+                        .findViewById(R.id.grid_item_label);
+
+                textView.setText(cardValues.getJSONObject(position).getString("title"));
+
+                // set image based on selected text
+                ImageView imageView = (ImageView) gridView
+                        .findViewById(R.id.grid_item_image);
+
+                String cardLang = cardValues.getJSONObject(position).getString("lang");
+
+                if (cardLang.equals("Web"))
+                    imageView.setImageResource(R.drawable.ic_menu_web);
+                else if (cardLang.equals("javascript"))
+                    imageView.setImageResource(R.drawable.ic_menu_js);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        } else {
+            gridView = (View) convertView;
+        }
+        return gridView;
+    }
+
+    @Override
+    public int getCount() {
+        return cardValues.length();
+    }
+
+    @Override
+    public Object getItem(int position) {
+        return null;
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return 0;
+    }
+}
+
+//Webview
+setProgressBarIndeterminateVisibility(true);
+        setProgressBarVisibility(true);
+
+        setContentView(R.layout.activity_main);
+
+        progressBar = (ProgressBar)findViewById(R.id.progressbar);
+        progressBar.setProgress(0);
+        progressBar.setVisibility(View.VISIBLE);
+
+        webview = new WebView(this);
+        webview.getSettings().setJavaScriptEnabled(true);
+        webview.setWebChromeClient(new WebChromeClient() {
+            public void onProgressChanged(WebView view, int progress) {
+                progressBar.setProgress(progress);
+                if (progress == 100) {
+                    progressBar.setVisibility(View.GONE);
+                }}
+        });
+
+        webview.setWebViewClient(new WebViewClient() {});
+        webview.loadUrl("MY URL");
+        setContentView(webview);
+    }
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_BACK:
+                    if (webview.canGoBack()) {
+                        webview.goBack();
+                    } else {
+                        finish();
+                    }
+                    return true;
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
